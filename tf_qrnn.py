@@ -23,8 +23,8 @@ class QRNN():
             f = tf.sigmoid(f)
             z = tf.tanh(z)
             o = tf.sigmoid(o)
-            self.c = tf.mul(f, self.c) + tf.mul(1 - f, z)
-            self.h = tf.mul(o, self.c)  # h is size vector
+            self.c = tf.multiply(f, self.c) + tf.multiply(1 - f, z)
+            self.h = tf.multiply(o, self.c)  # h is size vector
 
         return self.h
 
@@ -62,8 +62,8 @@ class QRNNLinear():
         self._weight_size = self.size * 3  # z, f, o
         with tf.variable_scope("QRNN/Variable/Linear"):
             initializer = tf.random_normal_initializer()
-            self.W = tf.get_variable("W", [self.in_size, self._weight_size], initializer=initializer)
-            self.b = tf.get_variable("b", [self._weight_size], initializer=initializer)
+            self.W = tf.get_variable("W", [self.in_size, self._weight_size], dtype=tf.float32, initializer=initializer)
+            self.b = tf.get_variable("b", [self._weight_size], dtype=tf.float32, initializer=initializer)
 
     def forward(self, t):
         # x is batch_size x word_length matrix
@@ -71,7 +71,7 @@ class QRNNLinear():
         _weighted = tf.add(_weighted, self.b)
 
         # now, _weighted is batch_size x weight_size
-        f, z, o = tf.split(1, 3, _weighted)  # split to f, z, o. each matrix is batch_size x size
+        f, z, o = tf.split(_weighted, 3, 1)  # split to f, z, o. each matrix is batch_size x size
         return f, z, o
 
 
@@ -84,20 +84,20 @@ class QRNNWithPrevious():
         self._previous = None
         with tf.variable_scope("QRNN/Variable/WithPrevious"):
             initializer = tf.random_normal_initializer()
-            self.W = tf.get_variable("W", [self.in_size, self._weight_size], initializer=initializer)
-            self.V = tf.get_variable("V", [self.in_size, self._weight_size], initializer=initializer)
-            self.b = tf.get_variable("b", [self._weight_size], initializer=initializer)
+            self.W = tf.get_variable("W", [self.in_size, self._weight_size], dtype=tf.float32, initializer=initializer)
+            self.V = tf.get_variable("V", [self.in_size, self._weight_size], dtype=tf.float32, initializer=initializer)
+            self.b = tf.get_variable("b", [self._weight_size], dtype=tf.float32, initializer=initializer)
 
     def forward(self, t):
         if self._previous is None:
-            self._previous = tf.get_variable("previous", [t.get_shape()[0], self.in_size], initializer=tf.random_normal_initializer())
+            self._previous = tf.get_variable("previous", [t.get_shape()[0], self.in_size], dtype=tf.float32, initializer=tf.random_normal_initializer())
 
         _current = tf.matmul(t, self.W)
         _previous = tf.matmul(self._previous, self.V)
         _previous = tf.add(_previous, self.b)
         _weighted = tf.add(_current, _previous)
 
-        f, z, o = tf.split(1, 3, _weighted)  # split to f, z, o. each matrix is batch_size x size
+        f, z, o = tf.split(_weighted, 3, 1)  # split to f, z, o. each matrix is batch_size x size
         self._previous = t
         return f, z, o
 
@@ -112,7 +112,7 @@ class QRNNConvolution():
 
         with tf.variable_scope("QRNN/Variable/Convolution"):
             initializer = tf.random_normal_initializer()
-            self.conv_filter = tf.get_variable("conv_filter", [conv_size, in_size, self._weight_size], initializer=initializer)
+            self.conv_filter = tf.get_variable("conv_filter", [conv_size, in_size, self._weight_size], dtype=tf.float32, initializer=initializer)
 
     def conv(self, x):
         # !! x is batch_size x sentence_length x word_length(=channel) !!
@@ -120,5 +120,5 @@ class QRNNConvolution():
 
         # _weighted is batch_size x conved_size x output_channel
         _w = tf.transpose(_weighted, [1, 0, 2])  # conved_size x  batch_size x output_channel
-        _ws = tf.split(2, 3, _w) # make 3(f, z, o) conved_size x  batch_size x size
+        _ws = tf.split(_w, 3, 2) # make 3(f, z, o) conved_size x  batch_size x size
         return _ws
