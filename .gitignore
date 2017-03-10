@@ -91,5 +91,6 @@ ENV/
 .ropeproject
 
 summary
-
-
+temp/
+.DS_Store
+data/
